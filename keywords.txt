@@ -39,6 +39,8 @@ inverseOn	KEYWORD2
 inverseOff	KEYWORD2
 setDefault	KEYWORD2
 setFont	KEYWORD2
+cancelKanjiMode	KEYWORD2
+
 
 #######################################
 # Constants (LITERAL1)

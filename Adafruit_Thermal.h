@@ -123,6 +123,10 @@ public:
      */
     boldOn(),
     /*!
+     * @brief Disables Kanji / Chinese character mode and allows access the extended Character set
+     */    
+    cancelKanjiMode(),
+    /*!
      * @brief Disables double-height text
      */
     doubleHeightOff(),

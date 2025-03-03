@@ -9,6 +9,9 @@
  *
  * https://www.adafruit.com/product/597
  *
+ * Amended for the DFRobot GY-EH402 Thermal printer:
+ * https://www.dfrobot.com/product-1799.html
+ *
  * These printers use TTL serial to communicate.  One pin (5V or 3.3V) is
  * required to issue data to the printer.  A second pin can OPTIONALLY be
  * used to poll the paper status, but not all printers support this, and
@@ -36,7 +39,8 @@
 // this constant.  This will NOT make printing slower!  The physical
 // print and feed mechanisms are the bottleneck, not the port speed.
 #define BAUDRATE                                                               \
-  19200 //!< How many bits per second the serial port should transfer
+  9600 //!< How many bits per second the serial port should transfer
+  //DFRobot GY-EH402 Thermal printer only supports 9600 baud
 
 // ASCII codes used by some of the printer config commands:
 #define ASCII_TAB '\t' //!< Horizontal tab
@@ -222,6 +226,15 @@ void Adafruit_Thermal::setDefault() {
   setSize('s');
   setCharset();
   setCodePage();
+  cancelKanjiMode();
+}
+
+void Adafruit_Thermal::cancelKanjiMode() {
+  //The DFRobot GY-EH402 Thermal printer test page has all extended characters (128-255) in Chinese by default
+  //This ESC/POS command disables Kanji character mode
+  //ESC/POS Command Documentation https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/fs_period.html
+  //Firmware version supplied: S1.06 2023 10-31HcDL (I''ve not found a method to update the firmware that matches this model)
+  writeBytes(ASCII_FS, '.');
 }
 
 void Adafruit_Thermal::test() {
@@ -230,6 +243,8 @@ void Adafruit_Thermal::test() {
 }
 
 void Adafruit_Thermal::testPage() {
+  //Printing a test page can 'usually' be done by holding down the linefeed button while you plug in power to the unit.
+  //The DFRobot GY-EH402 Thermal printer can also print a test page after power on by pressing the linefeed button twice in quick succession (like a double-click)
   writeBytes(ASCII_DC2, 'T');
   timeoutSet(dotPrintTime * 24 * 26 + // 26 lines w/text (ea. 24 dots high)
              dotFeedTime *
