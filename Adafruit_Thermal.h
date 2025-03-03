@@ -111,6 +111,14 @@ public:
     write(uint8_t c);
   void
     /*!
+     * @brief Enables auto line height adjustments
+     */
+    autoLineHeightOn(),
+    /*!
+     * @brief Disables auto line height adjustments
+     */
+    autoLineHeightOff(),
+    /*!
      * @param version firmware version as integer, e.g. 268 = 2.68 firmware
      */
     begin(uint16_t version=268),
@@ -351,12 +359,15 @@ private:
       column,        // Last horizontal column printed
       maxColumn,     // Page width (output 'wraps' at this point)
       charHeight,    // Height of characters, in 'dots'
+      charWidth,     // Width of characters, in 'dots'
       lineSpacing,   // Inter-line spacing (not line height), in dots
       barcodeHeight, // Barcode height in dots, not including text
       maxChunkHeight,
+      fontData,       // Selected Font & style
       dtrPin;         // DTR handshaking pin (experimental)
   uint16_t firmware;  // Firmware version
-  boolean dtrEnabled; // True if DTR pin set & printer initialized
+  boolean dtrEnabled, // True if DTR pin set & printer initialized
+      autoLineHeight; // if True, sets the lineheight based on selected font
   unsigned long
       resumeTime,   // Wait until micros() exceeds this before sending byte
       dotPrintTime, // Time to print a single dot line, in microseconds
@@ -366,7 +377,7 @@ private:
       writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d),
       writeCmdBytes(uint8_t a, uint8_t b, uint8_t c, bool d=false),
       setPrintMode(uint8_t mask), unsetPrintMode(uint8_t mask),
-      writePrintMode(), adjustCharValues(uint8_t printMode);
+      writePrintMode(), adjustCharValues();
 };
 
 #endif // ADAFRUIT_THERMAL_H

@@ -51,6 +51,7 @@
 #define ASCII_ESC 27   //!< Escape
 #define ASCII_FS 28    //!< Field separator
 #define ASCII_GS 29    //!< Group separator
+#define FIN_CMD 12      //!< Instruction Terminator (Found commands weren't executing without a terminator)
 
 // Because there's no flow control between the printer and Arduino,
 // special care must be taken to avoid overrunning the printer's buffer.
@@ -305,16 +306,34 @@ void Adafruit_Thermal::printBarcode(const char *text, uint8_t type) {
 #define DOUBLE_WIDTH_MASK (1 << 5)  //!< Turn on/off double-width printing mode
 #define STRIKE_MASK (1 << 6)        //!< Turn on/off deleteline mode
 
-void Adafruit_Thermal::adjustCharValues(uint8_t printMode) {
-  uint8_t charWidth;
-  if (printMode & FONT_MASK) {
-    // FontB
-    charHeight = 17;
-    charWidth = 9;
-  } else {
-    // FontA
-    charHeight = 24;
-    charWidth = 12;
+void Adafruit_Thermal::adjustCharValues() {
+  uint8_t currentFont = fontData & 7;
+  switch (currentFont){
+    case 1:
+        // FontB   9x24  Narrow / Condensed
+        charWidth = 9;
+        charHeight = 24;
+        break;
+    case 2:
+        // FontC   9x17  Narrow / Smaller
+        charWidth = 9;
+        charHeight = 17;
+        break;
+    case 3:
+        // FontD   8x16  Line Based Tiny
+        charWidth = 8;
+        charHeight = 16;
+        break;
+    case 4:
+        // FontE  16x16  Wide with Serifs
+        charWidth = 16;
+        charHeight = 16;
+        break;
+    case 0:
+    default:
+        // FontA
+        charWidth = 12;
+        charHeight = 24;
   }
   // Double Width Mode
   if (printMode & DOUBLE_WIDTH_MASK) {
@@ -326,12 +345,23 @@ void Adafruit_Thermal::adjustCharValues(uint8_t printMode) {
     charHeight *= 2;
   }
   maxColumn = (384 / charWidth);
+
+  uint8_t fontStyle = (printMode & 32) << 2;                  //Copy Height info from Printmode
+  fontStyle = fontStyle | ((printMode & 16) >> 1);            //Copy Width info from Printmode
+  fontData = fontStyle | currentFont;                              
+  
+  writeBytes(ASCII_ESC, 'M', currentFont, FIN_CMD);           //Set the Font
+  writeBytes(ASCII_GS, '!', fontStyle >> 3 , FIN_CMD);        //Set the Height & Width
+
+  if(autoLineHeight) {
+      writeBytes(ASCII_ESC, '3', charHeight + lineSpacing);   //Set LineHeight based on new font
+  }  
 }
 
 void Adafruit_Thermal::setPrintMode(uint8_t mask) {
   printMode |= mask;
   writePrintMode();
-  adjustCharValues(printMode);
+  adjustCharValues();
   // charHeight = (printMode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
   // maxColumn = (printMode & DOUBLE_WIDTH_MASK) ? 16 : 32;
 }
@@ -339,7 +369,7 @@ void Adafruit_Thermal::setPrintMode(uint8_t mask) {
 void Adafruit_Thermal::unsetPrintMode(uint8_t mask) {
   printMode &= ~mask;
   writePrintMode();
-  adjustCharValues(printMode);
+  adjustCharValues();
   // charHeight = (printMode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
   // maxColumn = (printMode & DOUBLE_WIDTH_MASK) ? 16 : 32;
 }
@@ -383,6 +413,16 @@ void Adafruit_Thermal::upsideDownOff() {
   } else {
     unsetPrintMode(UPDOWN_MASK);
   }
+}
+
+void Adafruit_Thermal::autoLineHeightOn() {
+  autoLineHeight = true;
+  adjustCharValues();
+}
+
+void Adafruit_Thermal::autoLineHeightOff() {
+  autoLineHeight = false;
+  adjustCharValues();
 }
 
 void Adafruit_Thermal::doubleHeightOn() { setPrintMode(DOUBLE_HEIGHT_MASK); }
@@ -685,9 +725,11 @@ int Adafruit_Thermal::getStatus(uint8_t statusPage) {
 }
 
 void Adafruit_Thermal::setLineHeight(int val) {
-  if (val < 24)
-    val = 24;
-  lineSpacing = val - 24;
+  autoLineHeightOff();
+  //Lowered minimum to allow to accomodatethe new smaller fonts
+  if (val < 20)
+    val = 20;
+  lineSpacing = val - 20;
 
   // The printer doesn't take into account the current text height
   // when setting line height, making this more akin to inter-line
@@ -719,15 +761,35 @@ void Adafruit_Thermal::tab() {
   column = (column + 4) & 0b11111100;
 }
 
-void Adafruit_Thermal::setFont(char font) {
-  switch (toupper(font)) {
-  case 'B':
-    setPrintMode(FONT_MASK);
-    break;
-  case 'A':
-  default:
-    unsetPrintMode(FONT_MASK);
+void Adafruit_Thermal::setFont(uint8_t font) {
+  // See ESC/POS Documentation  https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_cm.html
+  // Overhaul for handling fonts, no longer storing in printMode variable
+  // DFRobot GY-EH402 Thermal printer supports the usual 2 Fonts that are included in the datasheet.
+  //    Font A = 12x24 - Clean and readable at pretty much all sizes
+  //    Font B = 9x24  - A condensed / squished version of font A
+  //
+  // Firmware S1.06 2023 10-31HcDL also includes 3 additional undocumented fonts
+  //    Font C = 9x17  - A smaller version of Font B 
+  //    Font D = 8x16  - A single line font, very small. Very hard to see if you don't adjust your heatconfig just right.
+  //    Font E = 16x16 - A wide font with serifs
+  //
+  //    All 3 extras fonts do not have a usable extended character table
+  //    Only characters 0-127 are usable.
+  //    (Technically Font C DOES have an extended character table, but it's corrupted in firmware - likely missed transposing the bits)
+  
+  if (font >= 65){
+    //Letter was supplied to determine font eg setFont('A')
+    font = toupper(font);
+    font = (font > 69 ? 65: font);
+    font = (font < 65 ? 65: font);
+    font = font - 65;
   }
+  else{
+    //Number was supplied to determine font eg setFont(0)
+    font = (font > 4 ? 0: font);                            // Allow entering numeric value instead of letters (A=0, B=1, etc...)
+  }
+  fontData = (fontData & 248) | font;                       //Update Font, but keep styling
+  adjustCharValues();
 }
 
 void Adafruit_Thermal::setCharSpacing(int spacing) {
