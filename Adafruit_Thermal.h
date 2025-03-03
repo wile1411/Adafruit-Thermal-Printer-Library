@@ -333,12 +333,16 @@ public:
      * @brief Wakes device that was in sleep mode
      */
     wake();
-  bool
     /*!
      * @brief Whether or not the printer has paper
      * @return Returns true if there is still paper
      */
-    hasPaper();
+    bool hasPaper();
+    /*!
+     * @brief Send printer status to host / Arduino
+     * @return Returns byte of data for the status page queried 
+     */
+    int getStatus(uint8_t statusPage=1);
 
 private:
   Stream *stream;
@@ -360,6 +364,7 @@ private:
   void writeBytes(uint8_t a), writeBytes(uint8_t a, uint8_t b),
       writeBytes(uint8_t a, uint8_t b, uint8_t c),
       writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d),
+      writeCmdBytes(uint8_t a, uint8_t b, uint8_t c, bool d=false),
       setPrintMode(uint8_t mask), unsetPrintMode(uint8_t mask),
       writePrintMode(), adjustCharValues(uint8_t printMode);
 };

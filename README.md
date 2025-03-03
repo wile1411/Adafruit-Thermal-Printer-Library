@@ -1,4 +1,5 @@
-# Adafruit Thermal Printer Library (Amended for DFRobot Thermal Printer)
+# Adafruit Thermal Printer Library 
+(Amended for DFRobot Thermal Printer)
 
 
 [![Build Status](https://github.com/adafruit/Adafruit-Thermal-Printer-Library/workflows/Arduino%20Library%20CI/badge.svg)](https://github.com/adafruit/Adafruit-Thermal-Printer-Library/actions)[![Documentation](https://github.com/adafruit/ci-arduino/blob/master/assets/doxygen_badge.svg)](http://adafruit.github.io/Adafruit-Thermal-Printer-Library/html/index.html)
@@ -8,7 +9,7 @@ This is an Arduino library for the Adafruit Thermal Printer.
 Pick one up at --> https://www.adafruit.com/product/597
 These printers use TTL serial to communicate, 2 pins are required.
 
-Amended library for the DFRobot Thermal Printer avaialble at --> https://www.dfrobot.com/product-1799.html
+Amended library for the DFRobot GY-EH402 Thermal printer avaialble at --> https://www.dfrobot.com/product-1799.html
 Since Adafruit has abandoned this library to archive, I've been doing some deep dives into the DFRobot printer and created this fork for my notes on that printer model and to contribute to those looking to use a similar thermal printer.
 This fork includes added functionality that I saw a number of people having issues implementing.
 

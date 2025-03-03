@@ -144,6 +144,18 @@ void Adafruit_Thermal::writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
   timeoutSet(4 * BYTE_TIME);
 }
 
+void Adafruit_Thermal::writeCmdBytes(uint8_t a, uint8_t b, uint8_t c, bool d) {
+  //Private method required for sending commands to the printer while the lid is open AND with Flowcontrol on via the DTR PIN
+  //All other writebyte commands will wait for the dtrPin to be LOW before continuing. This will never happen while the printer lid is open and there is no RTS pin used.
+  //This function is used only for requesting the status of the printer while the lid is open. 
+  //Should NEVER be used for any commands that cause the printer to print characters.
+  if(!d) timeoutWait();
+  stream->write(a);
+  stream->write(b);
+  stream->write(c);
+  timeoutSet(3 * BYTE_TIME);
+}
+
 // The underlying method for all high-level printing (e.g. println()).
 // The inherited Print class handles the rest!
 size_t Adafruit_Thermal::write(uint8_t c) {
@@ -645,15 +657,23 @@ void Adafruit_Thermal::wake() {
 
 // Check the status of the paper using the printer's self reporting
 // ability.  Returns true for paper, false for no paper.
-// Might not work on all printers!
+// Amended for DFRobot GY-EH402 Thermal printer paper status
 bool Adafruit_Thermal::hasPaper() {
-  if (firmware >= 264) {
-    writeBytes(ASCII_ESC, 'v', 0);
-  } else {
-    writeBytes(ASCII_GS, 'r', 0);
-  }
+  uint8_t status = getStatus(4);
+  return !((status & 0b01100000) == 96);
+}
 
-  int status = -1;
+// DFRobot GY-EH402 Thermal printer has multiple status pages to request from
+// Used different command as ESC v is obsolete and wasn't working for GY-EH402 model
+// ESC/POS command https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_eot.html
+// DFRobot Manual - https://dfimg.dfrobot.com/nobody/wiki/0c0a789684349c93a55e754f49bdea18.pdf
+// Page 1: Printer Status             (Offine Indicator)
+// Page 2: Offline cause status       (Cover Open Indicator)
+// Page 3: Error cause status         (includes heat/voltage outside range flag)
+// Page 4: Paper Roll sensor status   (Paper Status)
+int Adafruit_Thermal::getStatus(uint8_t statusPage) {
+  writeCmdBytes('\x10', 4, statusPage, true);
+  uint8_t status = 255;  
   for (uint8_t i = 0; i < 10; i++) {
     if (stream->available()) {
       status = stream->read();
@@ -661,8 +681,7 @@ bool Adafruit_Thermal::hasPaper() {
     }
     delay(100);
   }
-
-  return !(status & 0b00000100);
+  return status;
 }
 
 void Adafruit_Thermal::setLineHeight(int val) {
