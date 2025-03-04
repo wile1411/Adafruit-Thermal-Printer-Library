@@ -145,6 +145,16 @@ void Adafruit_Thermal::writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
   timeoutSet(4 * BYTE_TIME);
 }
 
+void Adafruit_Thermal::writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e) {
+  timeoutWait();
+  stream->write(a);
+  stream->write(b);
+  stream->write(c);
+  stream->write(d);
+  stream->write(e);
+  timeoutSet(5 * BYTE_TIME);
+}
+
 void Adafruit_Thermal::writeCmdBytes(uint8_t a, uint8_t b, uint8_t c, bool d) {
   //Private method required for sending commands to the printer while the lid is open AND with Flowcontrol on via the DTR PIN
   //All other writebyte commands will wait for the dtrPin to be LOW before continuing. This will never happen while the printer lid is open and there is no RTS pin used.
@@ -235,7 +245,9 @@ void Adafruit_Thermal::setDefault() {
   setLineHeight(30);
   boldOff();
   underlineOff();
+  autoLineHeight = true;
   setBarcodeHeight(50);
+  fontData = 0;
   setSize('s');
   setCharset();
   setCodePage();
@@ -256,7 +268,7 @@ void Adafruit_Thermal::test() {
 }
 
 void Adafruit_Thermal::testPage() {
-  //Printing a test page can 'usually' be done by holding down the linefeed button while you plug in power to the unit.
+  //Manually printing a test page can 'usually' be done by holding down the linefeed button while you plug in power to the unit.
   //The DFRobot GY-EH402 Thermal printer can also print a test page after power on by pressing the linefeed button twice in quick succession (like a double-click)
   writeBytes(ASCII_DC2, 'T');
   timeoutSet(dotPrintTime * 24 * 26 + // 26 lines w/text (ea. 24 dots high)
@@ -306,6 +318,8 @@ void Adafruit_Thermal::printBarcode(const char *text, uint8_t type) {
 #define DOUBLE_WIDTH_MASK (1 << 5)  //!< Turn on/off double-width printing mode
 #define STRIKE_MASK (1 << 6)        //!< Turn on/off deleteline mode
 
+
+
 void Adafruit_Thermal::adjustCharValues() {
   uint8_t currentFont = fontData & 7;
   switch (currentFont){
@@ -337,8 +351,8 @@ void Adafruit_Thermal::adjustCharValues() {
   }
   // Double Width Mode
   if (printMode & DOUBLE_WIDTH_MASK) {
-    maxColumn /= 2;
     charWidth *= 2;
+    maxColumn /= 2;
   }
   // Double Height Mode
   if (printMode & DOUBLE_HEIGHT_MASK) {
@@ -354,7 +368,7 @@ void Adafruit_Thermal::adjustCharValues() {
   writeBytes(ASCII_GS, '!', fontStyle >> 3 , FIN_CMD);        //Set the Height & Width
 
   if(autoLineHeight) {
-      writeBytes(ASCII_ESC, '3', charHeight + lineSpacing);   //Set LineHeight based on new font
+    writeBytes(ASCII_ESC, '3', charHeight + lineSpacing);   //Set LineHeight based on new font
   }  
 }
 
@@ -362,16 +376,12 @@ void Adafruit_Thermal::setPrintMode(uint8_t mask) {
   printMode |= mask;
   writePrintMode();
   adjustCharValues();
-  // charHeight = (printMode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
-  // maxColumn = (printMode & DOUBLE_WIDTH_MASK) ? 16 : 32;
 }
 
 void Adafruit_Thermal::unsetPrintMode(uint8_t mask) {
   printMode &= ~mask;
   writePrintMode();
   adjustCharValues();
-  // charHeight = (printMode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
-  // maxColumn = (printMode & DOUBLE_WIDTH_MASK) ? 16 : 32;
 }
 
 void Adafruit_Thermal::writePrintMode() {
@@ -423,6 +433,14 @@ void Adafruit_Thermal::autoLineHeightOn() {
 void Adafruit_Thermal::autoLineHeightOff() {
   autoLineHeight = false;
   adjustCharValues();
+}
+
+void Adafruit_Thermal::userCharacterSetOn() {
+  writeBytes(ASCII_ESC, '%', 1);  
+}
+
+void Adafruit_Thermal::userCharacterSetOff() {
+  writeBytes(ASCII_ESC, '%', 0);  
 }
 
 void Adafruit_Thermal::doubleHeightOn() { setPrintMode(DOUBLE_HEIGHT_MASK); }
@@ -652,6 +670,23 @@ void Adafruit_Thermal::printBitmap(Stream *fromStream) {
   height = (fromStream->read() << 8) + tmp;
 
   printBitmap(width, height, fromStream);
+}
+
+// Defines one or multiple custom characters in sequence 
+void Adafruit_Thermal::userDefinedCharacter(uint8_t y_bytes, uint8_t charCodeFrom, uint8_t charCodeTo, int arySize, const uint8_t *charBytes) {
+  // (ESC, '&', 3, 32, 32, [Charwidth, 3xCharwidth bytes],[Charwidth, 3xCharwidth bytes],etc... ) See new examples folder
+
+  writeBytes(ASCII_ESC, '&',y_bytes, charCodeFrom, charCodeTo); // Initial command to define a character
+  
+  for (int x = 0; x < arySize; x++)  {
+    timeoutWait();
+    stream->write(charBytes[x]);
+  }
+}
+
+// Removes data from the user-defined character and reverts to standard character set.
+void Adafruit_Thermal::clearUserCharacter(uint8_t charVal) {
+  writeBytes(ASCII_ESC, '?', charVal);  
 }
 
 // Take the printer offline. Print commands sent after this will be

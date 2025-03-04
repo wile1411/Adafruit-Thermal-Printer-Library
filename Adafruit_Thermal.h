@@ -132,8 +132,12 @@ public:
     boldOn(),
     /*!
      * @brief Disables Kanji / Chinese character mode and allows access the extended Character set
-     */    
+     */
     cancelKanjiMode(),
+    /*!
+     * @brief Clears a user-defined character
+     */
+    clearUserCharacter(uint8_t charVal=32),
     /*!
      * @brief Disables double-height text
      */
@@ -213,7 +217,7 @@ public:
     printBitmap(Stream *fromStream),
     /*!
      * @brief Sets text to normal mode
-     */ 
+     */
     normal(),
     /*!
      * @brief Reset the printer
@@ -228,7 +232,7 @@ public:
      * @brief Sets the font
      * @param font Desired font, either A or B
      */
-    setFont(char font='A'),
+    setFont(uint8_t font='A'),
     /*!
      * @brief Sets the character spacing
      * @param spacing Desired character spacing
@@ -249,6 +253,13 @@ public:
      */
     setDefault(),
     /*!
+     * @brief Sets print head heating configuration
+     * @param dots max printing dots, 8 dots per increment
+     * @param time heating time, 10us per increment
+     * @param interval heating interval, 10 us per increment
+     */
+    setHeatConfig(uint8_t dots=11, uint8_t time=120, uint8_t interval=40),
+    /*!
      * @brief Sets the line height
      * @param val Desired line height
      */
@@ -258,6 +269,12 @@ public:
      * @param val Max rows to write
      */
     setMaxChunkHeight(int val=256),
+    /*!
+     * @brief Sets print density
+     * @param density printing density
+     * @param breakTime printing break time
+     */
+    setPrintDensity(uint8_t density=10, uint8_t breakTime=2),
     /*!
      * @brief Sets text size
      * @param value Text size
@@ -269,19 +286,6 @@ public:
      * @param f feed speed
      */
     setTimes(unsigned long, unsigned long),
-    /*!
-     * @brief Sets print head heating configuration
-     * @param dots max printing dots, 8 dots per increment
-     * @param time heating time, 10us per increment
-     * @param interval heating interval, 10 us per increment
-     */
-    setHeatConfig(uint8_t dots=11, uint8_t time=120, uint8_t interval=40),
-    /*!
-     * @brief Sets print density
-     * @param density printing density
-     * @param breakTime printing break time
-     */
-    setPrintDensity(uint8_t density=10, uint8_t breakTime=2),
     /*!
      * @brief Puts the printer into a low-energy state immediately
      */
@@ -338,6 +342,18 @@ public:
      */
     upsideDownOn(),
     /*!
+     * @brief Enables user defined character set
+     */
+    userCharacterSetOn(),
+    /*!
+     * @brief Disables user defined character set
+     */
+    userCharacterSetOff(),
+    /*!
+     * @brief Set user-defined characters (one or many), must supply array size
+     */
+    userDefinedCharacter(uint8_t y_bytes=3, uint8_t charCodeFrom=32, uint8_t charCodeTo=32, int arySize=0, const uint8_t *charBytes={}),
+    /*!
      * @brief Wakes device that was in sleep mode
      */
     wake();
@@ -375,6 +391,7 @@ private:
   void writeBytes(uint8_t a), writeBytes(uint8_t a, uint8_t b),
       writeBytes(uint8_t a, uint8_t b, uint8_t c),
       writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d),
+      writeBytes(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e),
       writeCmdBytes(uint8_t a, uint8_t b, uint8_t c, bool d=false),
       setPrintMode(uint8_t mask), unsetPrintMode(uint8_t mask),
       writePrintMode(), adjustCharValues();
